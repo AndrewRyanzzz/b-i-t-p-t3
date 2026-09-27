@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thực đơn dinh dưỡng cá nhân hóa</title>
+<style>
+:root{
+  --bg:#f7f5f2;--card:#fff;--ink:#1f2320;--sub:#6b6f6a;--line:#e4e1db;
+  --green:#3f8f5f;--amber:#c98a1f;--red:#c0432f;--accent:#2f6f5e;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){--bg:#191b19;--card:#232624;--ink:#eee;--sub:#9aa39c;--line:#333;--accent:#5fb89a;}
+}
+:root[data-theme="dark"]{--bg:#191b19;--card:#232624;--ink:#eee;--sub:#9aa39c;--line:#333;--accent:#5fb89a;}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*{box-sizing:border-box}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+h1{font-size:1.2rem;margin:0}
+.wrap{max-width:1200px;margin:0 auto;padding:16px}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.field{display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--sub)}
+.field input[type=number]{width:70px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:.78rem;cursor:pointer;background:var(--bg);color:var(--ink);user-select:none}
+.chip.on{background:var(--red);color:#fff;border-color:var(--red)}
+.grid{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:14px}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;overflow-x:auto}
+.panel h2{font-size:.95rem;margin:0 0 10px}
+/* chat */
+#log{height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+.msg{padding:8px 10px;border-radius:10px;font-size:.85rem;max-width:92%}
+.msg.bot{background:var(--bg);border:1px solid var(--line);align-self:flex-start}
+.msg.me{background:var(--accent);color:#fff;align-self:flex-end}
+#chatForm{display:flex;gap:6px}
+#chatInput{flex:1;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+#chatForm button{border:none;background:var(--accent);color:#fff;border-radius:8px;padding:8px 12px;cursor:pointer}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+/* kho món */
+.food-list{display:flex;flex-direction:column;gap:8px}
+.food{border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:grab;background:var(--bg);transition:box-shadow .2s}
+.food.pulse{box-shadow:0 0 0 3px var(--accent)}
+.food .fname{font-weight:600;font-size:.88rem}
+.food .fmeta{font-size:.75rem;color:var(--sub)}
+.tag{display:inline-block;font-size:.68rem;padding:1px 6px;border-radius:6px;background:var(--line);margin-right:4px}
+/* thực đơn */
+.slot{border:2px dashed var(--line);border-radius:12px;padding:8px;margin-bottom:10px;min-height:60px}
+.slot h3{font-size:.85rem;margin:0 0 6px;color:var(--sub)}
+.slot .item{display:flex;justify-content:space-between;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin-bottom:6px;font-size:.82rem}
+.item.warn{border-color:var(--red);background:rgba(192,67,47,.1)}
+.warn-badge{color:var(--red);font-size:.72rem;font-weight:600}
+.rm{cursor:pointer;color:var(--sub);border:none;background:none;font-size:1rem}
+.bar-wrap{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:4px 0 2px}
+.bar{height:100%;border-radius:4px}
+.total{font-size:.85rem;color:var(--sub);text-align:right;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="top">
+  <h1>🥗 Thực đơn dinh dưỡng cá nhân hóa</h1>
+  <div class="field">Mục tiêu calo/ngày: <input id="target" type="number" value="2000" min="800" step="50"></div>
+  <div class="chips" id="allergyChips"></div>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>💬 Trợ lý gợi ý</h2>
+    <div id="log"></div>
+    <form id="chatForm"><input id="chatInput" placeholder="VD: gợi ý bữa sáng ít calo..."><button>Gửi</button></form>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="panel">
+    <h2>📦 Kho món ăn (kéo thả sang bên phải)</h2>
+    <div class="food-list" id="foodList"></div>
+  </div>
+
+  <div class="panel">
+    <h2>📋 Thực đơn hôm nay</h2>
+    <div id="slots"></div>
+    <div class="bar-wrap"><div class="bar" id="totalBar"></div></div>
+    <div class="total" id="totalText"></div>
+  </div>
+</div>
+</div>
+
+<script>
+const ALLERGENS=["Hải sản","Đậu phộng","Sữa","Trứng","Gluten","Đậu nành"];
+const FOODS=[
+ {id:1,name:"Ức gà áp chảo",cal:220,all:[],tags:["giảm cân","protein","trưa","tối"]},
+ {id:2,name:"Cơm gạo lứt",cal:170,all:["Gluten"],tags:["trưa","tối"]},
+ {id:3,name:"Trứng ốp la",cal:90,all:["Trứng"],tags:["sáng","protein"]},
+ {id:4,name:"Salad bơ tôm",cal:250,all:["Hải sản"],tags:["giảm cân","trưa"]},
+ {id:5,name:"Sữa chua Hy Lạp",cal:120,all:["Sữa"],tags:["sáng","giảm cân"]},
+ {id:6,name:"Bơ đậu phộng bánh mì",cal:280,all:["Đậu phộng","Gluten"],tags:["sáng","tăng cân"]},
+ {id:7,name:"Cá hồi nướng",cal:260,all:["Hải sản"],tags:["protein","tối","tăng cơ"]},
+ {id:8,name:"Đậu hũ sốt cà",cal:150,all:["Đậu nành"],tags:["chay","trưa","tối"]},
+ {id:9,name:"Yến mạch chuối",cal:200,all:[],tags:["sáng","giảm cân","chay"]},
+ {id:10,name:"Ức bò xào rau",cal:230,all:[],tags:["tăng cơ","trưa","tối"]},
+ {id:11,name:"Súp tôm cua",cal:180,all:["Hải sản"],tags:["trưa"]},
+ {id:12,name:"Hạt hỗn hợp (snack)",cal:160,all:["Đậu phộng"],tags:["ăn vặt","tăng cân"]},
+ {id:13,name:"Ức gà + khoai lang",cal:300,all:[],tags:["tăng cơ","tối"]},
+ {id:14,name:"Sinh tố sữa chuối",cal:210,all:["Sữa"],tags:["sáng","tăng cân"]},
+ {id:15,name:"Rau củ luộc + đậu hũ",cal:140,all:["Đậu nành"],tags:["chay","giảm cân","tối"]},
+];
+let allergies=new Set();
+let menu={sang:[],trua:[],toi:[]};
+
+function el(t,c,h){const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;}
+
+function renderAllergyChips(){
+  const box=document.getElementById('allergyChips');box.innerHTML='';
+  ALLERGENS.forEach(a=>{
+    const c=el('div','chip'+(allergies.has(a)?' on':''),a);
+    c.onclick=()=>{allergies.has(a)?allergies.delete(a):allergies.add(a);renderAll();};
+    box.appendChild(c);
+  });
+}
+
+function hasAllergy(food){return food.all.some(a=>allergies.has(a));}
+
+function renderFoodList(){
+  const box=document.getElementById('foodList');box.innerHTML='';
+  FOODS.forEach(f=>{
+    const card=el('div','food');card.id='food-'+f.id;card.draggable=true;
+    card.ondragstart=e=>e.dataTransfer.setData('text/plain',f.id);
+    card.innerHTML=`<div class="fname">${f.name} ${hasAllergy(f)?'⚠️':''}</div>
+      <div class="fmeta">${f.cal} kcal</div>
+      <div>${f.tags.map(t=>'<span class="tag">'+t+'</span>').join('')}</div>`;
+    box.appendChild(card);
+  });
+}
+
+const SLOT_LABELS={sang:'☀️ Bữa sáng',trua:'🍚 Bữa trưa',toi:'🌙 Bữa tối'};
+function renderSlots(){
+  const box=document.getElementById('slots');box.innerHTML='';
+  Object.keys(menu).forEach(key=>{
+    const slot=el('div','slot');
+    slot.ondragover=e=>e.preventDefault();
+    slot.ondrop=e=>{e.preventDefault();const id=+e.dataTransfer.getData('text/plain');addToMenu(key,id);};
+    let inner=`<h3>${SLOT_LABELS[key]}</h3>`;
+    menu[key].forEach((f,idx)=>{
+      const warn=hasAllergy(f);
+      inner+=`<div class="item ${warn?'warn':''}">
+        <span>${f.name} · ${f.cal} kcal ${warn?'<span class="warn-badge">⚠️ Dị ứng</span>':''}</span>
+        <button class="rm" onclick="removeFromMenu('${key}',${idx})">✕</button></div>`;
+    });
+    slot.innerHTML=inner;
+    box.appendChild(slot);
+  });
+  renderTotals();
+}
+
+function addToMenu(key,id){
+  const f=FOODS.find(x=>x.id===id);if(!f)return;
+  menu[key].push(f);renderSlots();renderFoodList();
+}
+function removeFromMenu(key,idx){menu[key].splice(idx,1);renderSlots();}
+
+function renderTotals(){
+  const target=+document.getElementById('target').value||2000;
+  const total=Object.values(menu).flat().reduce((s,f)=>s+f.cal,0);
+  const pct=Math.min(100,(total/target)*100);
+  const bar=document.getElementById('totalBar');
+  bar.style.width=pct+'%';
+  bar.style.background = total>target ? 'var(--red)' : (total>target*0.85 ? 'var(--amber)' : 'var(--green)');
+  document.getElementById('totalText').textContent=`${total} / ${target} kcal`;
+}
+
+function renderAll(){renderAllergyChips();renderFoodList();renderSlots();}
+document.getElementById('target').addEventListener('input',renderTotals);
+
+// ---- Chat gợi ý (rule-based) ----
+const log=document.getElementById('log');
+function addMsg(text,who){
+  const m=el('div','msg '+who,text);log.appendChild(m);log.scrollTop=log.scrollHeight;
+}
+function suggestByKeywords(text){
+  const t=text.toLowerCase();
+  let tags=[];
+  if(t.includes('giảm cân'))tags.push('giảm cân');
+  if(t.includes('tăng cân'))tags.push('tăng cân');
+  if(t.includes('tăng cơ')||t.includes('protein'))tags.push('tăng cơ','protein');
+  if(t.includes('chay'))tags.push('chay');
+  if(t.includes('sáng'))tags.push('sáng');
+  if(t.includes('trưa'))tags.push('trưa');
+  if(t.includes('tối'))tags.push('tối');
+  if(t.includes('dị ứng')){
+    ALLERGENS.forEach(a=>{if(t.includes(a.toLowerCase()))allergies.add(a);});
+    renderAll();
+    return {msg:'Đã cập nhật hồ sơ dị ứng của bạn. Các món chứa dị ứng sẽ được đánh dấu ⚠️.',items:[]};
+  }
+  if(tags.length===0)tags=['giảm cân'];
+  let items=FOODS.filter(f=>tags.some(tag=>f.tags.includes(tag)) && !hasAllergy(f)).slice(0,3);
+  if(items.length===0)items=FOODS.filter(f=>!hasAllergy(f)).slice(0,3);
+  return {msg:`Gợi ý cho "${tags.join(', ')}" — nhấn vào món để xem trong kho:`,items};
+}
+function handleChat(text){
+  addMsg(text,'me');
+  const {msg,items}=suggestByKeywords(text);
+  addMsg(msg,'bot');
+  if(items.length){
+    const wrap=el('div','msg bot');
+    items.forEach(f=>{
+      const chip=el('span','chip',f.name+' · '+f.cal+'kcal');
+      chip.style.marginRight='4px';chip.style.marginTop='4px';chip.style.display='inline-block';
+      chip.onclick=()=>{
+        const card=document.getElementById('food-'+f.id);
+        card.scrollIntoView({behavior:'smooth',block:'center'});
+        card.classList.add('pulse');setTimeout(()=>card.classList.remove('pulse'),1200);
+      };
+      wrap.appendChild(chip);
+    });
+    log.appendChild(wrap);log.scrollTop=log.scrollHeight;
+  }
+}
+document.getElementById('chatForm').onsubmit=e=>{
+  e.preventDefault();
+  const inp=document.getElementById('chatInput');
+  if(inp.value.trim()){handleChat(inp.value.trim());inp.value='';}
+};
+const presets=["Tôi muốn giảm cân","Gợi ý bữa sáng ít calo","Tôi bị dị ứng hải sản","Món tăng cơ cho bữa tối","Tôi ăn chay"];
+const presetBox=document.getElementById('presets');
+presets.forEach(p=>{
+  const c=el('div','chip',p);c.onclick=()=>handleChat(p);presetBox.appendChild(c);
+});
+
+addMsg('Chào bạn! Hãy cho tôi biết mục tiêu của bạn (giảm cân, tăng cơ...) hoặc dị ứng cần tránh, tôi sẽ gợi ý món phù hợp.','bot');
+renderAll();
+</script>
+</body>
+</html>
